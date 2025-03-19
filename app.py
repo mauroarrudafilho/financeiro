@@ -69,26 +69,14 @@ df_clientes = df_filtered.groupby("Cliente").agg({
 
 df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
-# Formatar valores monetários
-df_clientes[["Soma Total de Valores em Aberto", "Valor Médio por Título"]] = df_clientes[["Soma Total de Valores em Aberto", "Valor Médio por Título"]].applymap(lambda x: f"R$ {x:,.2f}")
-df_filtered[["Vlr Título", "Vlr Devolução"]] = df_filtered[["Vlr Título", "Vlr Devolução"]].applymap(lambda x: f"R$ {x:,.2f}")
-
 # Exibir métricas principais
 st.title("📊 Relatório de Recuperação de Recursos")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total de Clientes", df_filtered["Cliente"].nunique())
-valor_total_pendente = df_filtered["Vlr Título"].replace('[R$ ,]', '', regex=True).astype(float).sum() col2.metric("Valor Total Pendente", f"R$ {valor_total_pendente:,.2f}")
+valor_total_pendente = df_filtered["Vlr Título"].sum()
+col2.metric("Valor Total Pendente", f"R$ {valor_total_pendente:,.2f}")
 col3.metric("Média de Score", round(df_filtered["Score Recuperação"].mean(), 2))
 col4.metric("Média do Tempo da Dívida (dias)", round(df_filtered["Tempo da Dívida"].mean(), 2))
-
-# Gráficos baseados nos filtros
-st.subheader("📊 Distribuição do Score de Recuperação")
-st.bar_chart(df_filtered["Score Recuperação"].value_counts().sort_index())
-st.subheader("🏦 Valor Total Pendente por Banco")
-bank_summary = df_filtered.groupby("Banco")["Vlr Título"].sum().sort_values(ascending=False)
-st.bar_chart(bank_summary)
-st.subheader("📌 Distribuição do Tempo da Dívida por Faixas")
-st.bar_chart(df_filtered["Faixa de Dívida"].value_counts())
 
 # Exibir tabelas baseadas nos filtros
 st.subheader("📌 Valores Pendentes por Cliente")
