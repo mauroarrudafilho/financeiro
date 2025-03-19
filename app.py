@@ -19,7 +19,8 @@ df["Score Recuperação"] = (
     (df["Outras parc. pagas"] == "Sim").astype(int) * 3 +
     (df["Teve Devolução?"] == "Não").astype(int) * 2 +
     (df["Vlr Devolução"] == 0).astype(int) * 1 +
-    ((pd.Timestamp.today() - df["Dt. Entrega"]).dt.days < 90).astype(int) * 2
+    ((pd.Timestamp.today() - df["Dt. Entrega"]).dt.days < 90).astype(int) * 2 +
+    ((df["Teve Devolução?"] == "Sim") & (df["Vlr Devolução"] < df["Vlr Título"])).astype(int) * 3
 )
 
 # Criar coluna de tempo da dívida (dias desde o vencimento)
