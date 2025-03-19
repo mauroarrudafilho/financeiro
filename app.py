@@ -69,6 +69,10 @@ df_clientes = df_filtered.groupby("Cliente").agg({
 
 df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
+# Formatar valores monetários
+df_clientes[["Soma Total de Valores em Aberto", "Valor Médio por Título"]] = df_clientes[["Soma Total de Valores em Aberto", "Valor Médio por Título"]].applymap(lambda x: f"R$ {x:,.2f}")
+df_filtered[["Vlr Título", "Vlr Devolução"]] = df_filtered[["Vlr Título", "Vlr Devolução"]].applymap(lambda x: f"R$ {x:,.2f}")
+
 # Exibir métricas principais
 st.title("📊 Relatório de Recuperação de Recursos")
 col1, col2, col3, col4 = st.columns(4)
