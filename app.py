@@ -38,8 +38,23 @@ def categorize_debt_days(days):
 
 df["Faixa de Dívida"] = df["Tempo da Dívida"].apply(categorize_debt_days)
 
-# Criar resumo por cliente
-df_clientes = df.groupby("Cliente").agg({
+# Aplicação dos filtros
+df_filtered = df.copy()
+responsavel = st.sidebar.multiselect("Filtrar por Responsável", df["Responsável"].unique())
+banco = st.sidebar.multiselect("Filtrar por Banco", df["Banco"].unique())
+score = st.sidebar.slider("Filtrar por Score de Recuperação", int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max()), (int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max())))
+min_dias, max_dias = int(df["Tempo da Dívida"].min()), int(df["Tempo da Dívida"].max())
+intervalo_tempo = st.sidebar.slider("Filtrar por Tempo da Dívida (dias)", min_dias, max_dias, (min_dias, max_dias))
+
+if responsavel:
+    df_filtered = df_filtered[df_filtered["Responsável"].isin(responsavel)]
+if banco:
+    df_filtered = df_filtered[df_filtered["Banco"].isin(banco)]
+df_filtered = df_filtered[(df_filtered["Score Recuperação"] >= score[0]) & (df_filtered["Score Recuperação"] <= score[1])]
+df_filtered = df_filtered[(df_filtered["Tempo da Dívida"] >= intervalo_tempo[0]) & (df_filtered["Tempo da Dívida"] <= intervalo_tempo[1])]
+
+# Criar resumo por cliente baseado nos filtros
+df_clientes = df_filtered.groupby("Cliente").agg({
     "Vlr Título": ["sum", "mean"],
     "NFe": "count",
     "Tempo da Dívida": "mean",
@@ -50,53 +65,27 @@ df_clientes = df.groupby("Cliente").agg({
 
 df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
-# Configuração do layout do Streamlit
+# Exibir métricas principais
 st.set_page_config(layout="wide", page_title="Relatório de Recuperação de Recursos")
 st.title("📊 Relatório de Recuperação de Recursos")
-
-# Filtros interativos
-responsavel = st.sidebar.multiselect("Filtrar por Responsável", df["Responsável"].unique())
-banco = st.sidebar.multiselect("Filtrar por Banco", df["Banco"].unique())
-score = st.sidebar.slider("Filtrar por Score de Recuperação", int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max()), (int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max())))
-
-# Filtro de tempo da dívida
-min_dias, max_dias = int(df["Tempo da Dívida"].min()), int(df["Tempo da Dívida"].max())
-intervalo_tempo = st.sidebar.slider("Filtrar por Tempo da Dívida (dias)", min_dias, max_dias, (min_dias, max_dias))
-
-# Aplicação dos filtros
-df_filtered = df.copy()
-if responsavel:
-    df_filtered = df_filtered[df_filtered["Responsável"].isin(responsavel)]
-if banco:
-    df_filtered = df_filtered[df_filtered["Banco"].isin(banco)]
-df_filtered = df_filtered[(df_filtered["Score Recuperação"] >= score[0]) & (df_filtered["Score Recuperação"] <= score[1])]
-df_filtered = df_filtered[(df_filtered["Tempo da Dívida"] >= intervalo_tempo[0]) & (df_filtered["Tempo da Dívida"] <= intervalo_tempo[1])]
-
-# Exibir métricas principais
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total de Clientes", df_filtered["Cliente"].nunique())
 col2.metric("Valor Total Pendente", f"R$ {df_filtered['Vlr Título'].sum():,.2f}")
 col3.metric("Média de Score", round(df_filtered["Score Recuperação"].mean(), 2))
 col4.metric("Média do Tempo da Dívida (dias)", round(df_filtered["Tempo da Dívida"].mean(), 2))
 
-# Gráfico de Distribuição de Score
+# Gráficos baseados nos filtros
 st.subheader("📊 Distribuição do Score de Recuperação")
 st.bar_chart(df_filtered["Score Recuperação"].value_counts().sort_index())
-
-# Gráfico de Valores Pendentes por Banco
 st.subheader("🏦 Valor Total Pendente por Banco")
 bank_summary = df_filtered.groupby("Banco")["Vlr Título"].sum().sort_values(ascending=False)
 st.bar_chart(bank_summary)
-
-# Gráfico de Faixa de Dívida
 st.subheader("📌 Distribuição do Tempo da Dívida por Faixas")
 st.bar_chart(df_filtered["Faixa de Dívida"].value_counts())
 
-# Tabela de resumo dos valores em aberto por cliente
+# Exibir tabelas baseadas nos filtros
 st.subheader("📌 Valores Pendentes por Cliente")
 st.dataframe(df_clientes)
-
-# Exibir dados detalhados no final da página
 st.subheader("📌 Dados Detalhados")
 st.dataframe(df_filtered)
 
