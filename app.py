@@ -77,7 +77,7 @@ df_filtered[["Vlr Título", "Vlr Devolução"]] = df_filtered[["Vlr Título", "V
 st.title("📊 Relatório de Recuperação de Recursos")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total de Clientes", df_filtered["Cliente"].nunique())
-col2.metric("Valor Total Pendente", f"R$ {df_filtered['Vlr Título'].sum():,.2f}")
+valor_total_pendente = df_filtered["Vlr Título"].replace('[R$ ,]', '', regex=True).astype(float).sum() col2.metric("Valor Total Pendente", f"R$ {valor_total_pendente:,.2f}")
 col3.metric("Média de Score", round(df_filtered["Score Recuperação"].mean(), 2))
 col4.metric("Média do Tempo da Dívida (dias)", round(df_filtered["Tempo da Dívida"].mean(), 2))
 
