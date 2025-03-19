@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 
+# Definir a configuração da página (DEVE SER A PRIMEIRA LINHA Streamlit)
+st.set_page_config(layout="wide", page_title="Relatório de Recuperação de Recursos")
+
 # Carregar os dados
 file_path = "Analise de Recuperação - Financeira.xlsx"
 df = pd.read_excel(file_path, sheet_name="Base Geral")
@@ -66,7 +69,6 @@ df_clientes = df_filtered.groupby("Cliente").agg({
 df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
 # Exibir métricas principais
-st.set_page_config(layout="wide", page_title="Relatório de Recuperação de Recursos")
 st.title("📊 Relatório de Recuperação de Recursos")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total de Clientes", df_filtered["Cliente"].nunique())
