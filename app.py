@@ -40,13 +40,14 @@ df_historico["Categoria Cliente"] = df_historico.apply(classificar_cliente, axis
 # Adicionar Código do Parceiro ao Resumo
 df_resumo_clientes = df_historico.groupby(["Cód. Parceiro", "Parceiro"])["Categoria Cliente"].value_counts().unstack().fillna(0).reset_index()
 
-# Verificar colunas disponíveis no resumo
-print("Colunas do df_resumo_clientes:", df_resumo_clientes.columns.tolist())
+# Verificar se as colunas existem antes de usar
+if "Parceiro" not in df_resumo_clientes.columns:
+    df_resumo_clientes["Parceiro"] = "Desconhecido"
 
 # Integrar a categoria ao Score de Recuperação
 def ajustar_score(row):
     if row["Parceiro"] in df_resumo_clientes["Parceiro"].values:
-        categoria = df_resumo_clientes.loc[df_resumo_clientes["Parceiro"] == row["Parceiro"], :].drop(columns=["Cód. Parceiro", "Parceiro"]).idxmax(axis=1).values[0]
+        categoria = df_resumo_clientes.loc[df_resumo_clientes["Parceiro"] == row["Parceiro"], :].drop(columns=["Cód. Parceiro", "Parceiro"], errors='ignore').idxmax(axis=1).values[0]
     else:
         categoria = "Desconhecido"
     
