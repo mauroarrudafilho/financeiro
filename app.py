@@ -14,7 +14,7 @@ df["Dt Venc"] = pd.to_datetime(df["Dt Venc"], errors="coerce")
 df["Vlr Devolução"] = pd.to_numeric(df["Vlr Devolução"], errors="coerce")
 df["Vlr Título"] = pd.to_numeric(df["Vlr Título"], errors="coerce")
 
-# Criar score de recuperação
+# Criar score de recuperação diretamente
 df["Score Recuperação"] = (
     (df["Outras parc. pagas"] == "Sim").astype(int) * 3 +
     (df["Teve Devolução?"] == "Não").astype(int) * 2 +
