@@ -5,11 +5,8 @@ import pandas as pd
 st.set_page_config(layout="wide", page_title="Relatório de Recuperação de Recursos")
 
 # Carregar os dados
-file_path_vencimentos = "Analise de Recuperação - Financeira.xlsx"
-df = pd.read_excel(file_path_vencimentos, sheet_name="Base Geral")
-
-file_path_historico = "Movimentacao Financeira_Arruda.xlsx"
-df_historico = pd.read_excel(file_path_historico, sheet_name=0)
+file_path = "Analise de Recuperação - Financeira.xlsx"
+df = pd.read_excel(file_path, sheet_name="Base Geral")
 
 # Ajustar os tipos de dados
 df["Dt. Entrega"] = pd.to_datetime(df["Dt. Entrega"], errors="coerce")
@@ -17,77 +14,78 @@ df["Dt Venc"] = pd.to_datetime(df["Dt Venc"], errors="coerce")
 df["Vlr Devolução"] = pd.to_numeric(df["Vlr Devolução"], errors="coerce")
 df["Vlr Título"] = pd.to_numeric(df["Vlr Título"], errors="coerce")
 
-# Ajustar datas no histórico de pagamentos
-df_historico["Dt. Vencimento"] = pd.to_datetime(df_historico["Dt. Vencimento"], errors="coerce")
-df_historico["Dt. Baixa"] = pd.to_datetime(df_historico["Dt. Baixa"], errors="coerce")
+# Criar score de recuperação
+df["Score Recuperação"] = (
+    (df["Outras parc. pagas"] == "Sim").astype(int) * 3 +
+    (df["Teve Devolução?"] == "Não").astype(int) * 2 +
+    (df["Vlr Devolução"] == 0).astype(int) * 1 +
+    ((pd.Timestamp.today() - df["Dt. Entrega"]).dt.days < 90).astype(int) * 2 +
+    ((df["Teve Devolução?"] == "Sim") & (df["Vlr Devolução"] < df["Vlr Título"])).astype(int) * 3
+)
 
-# Criar categorias de comportamento de pagamento
-def classificar_cliente(row):
-    if pd.isna(row["Dt. Baixa"]):
-        return "🔴 Inadimplente"
-    elif row["Dt. Baixa"] < row["Dt. Vencimento"]:
-        return "🔵 Adimplente (Antecipado)"
-    elif row["Dt. Baixa"] == row["Dt. Vencimento"]:
-        return "🟢 Adimplente (No Dia)"
-    elif (row["Dt. Baixa"] - row["Dt. Vencimento"]).days <= 15:
-        return "🟡 Intermediário (Atraso Eventual)"
+# Criar coluna de tempo da dívida (dias desde o vencimento)
+df["Tempo da Dívida"] = (pd.Timestamp.today() - df["Dt Venc"]).dt.days
+
+# Remover valores não vencidos (onde Tempo da Dívida é negativo)
+df = df[df["Tempo da Dívida"] >= 0]
+
+# Criar faixas de tempo da dívida
+def categorize_debt_days(days):
+    if days <= 15:
+        return "1 - 15 dias"
+    elif days <= 45:
+        return "15 - 45 dias"
+    elif days <= 90:
+        return "46 - 90 dias"
     else:
-        return "🟠 Atrasado Crônico"
+        return "Acima de 91 dias"
 
-# Aplicar a categorização
-df_historico["Categoria Cliente"] = df_historico.apply(classificar_cliente, axis=1)
+df["Faixa de Dívida"] = df["Tempo da Dívida"].apply(categorize_debt_days)
 
-# Adicionar Código do Parceiro ao Resumo
-df_resumo_clientes = df_historico.groupby(["Cód. Parceiro", "Parceiro"])["Categoria Cliente"].value_counts().unstack().fillna(0).reset_index()
+# Aplicação dos filtros
+df_filtered = df.copy()
+responsavel = st.sidebar.multiselect("Filtrar por Responsável", df["Responsável"].unique())
+banco = st.sidebar.multiselect("Filtrar por Banco", df["Banco"].unique())
+score = st.sidebar.slider("Filtrar por Score de Recuperação", int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max()), (int(df["Score Recuperação"].min()), int(df["Score Recuperação"].max())))
+min_dias, max_dias = int(df["Tempo da Dívida"].min()), int(df["Tempo da Dívida"].max())
+intervalo_tempo = st.sidebar.slider("Filtrar por Tempo da Dívida (dias)", min_dias, max_dias, (min_dias, max_dias))
 
-# Verificar se as colunas existem antes de usar
-if "Parceiro" not in df_resumo_clientes.columns:
-    df_resumo_clientes["Parceiro"] = "Desconhecido"
+if responsavel:
+    df_filtered = df_filtered[df_filtered["Responsável"].isin(responsavel)]
+if banco:
+    df_filtered = df_filtered[df_filtered["Banco"].isin(banco)]
+df_filtered = df_filtered[(df_filtered["Score Recuperação"] >= score[0]) & (df_filtered["Score Recuperação"] <= score[1])]
+df_filtered = df_filtered[(df_filtered["Tempo da Dívida"] >= intervalo_tempo[0]) & (df_filtered["Tempo da Dívida"] <= intervalo_tempo[1])]
 
-# Integrar a categoria ao Score de Recuperação
-def ajustar_score(row):
-    if row["Parceiro"] in df_resumo_clientes["Parceiro"].values:
-        categoria = df_resumo_clientes.loc[df_resumo_clientes["Parceiro"] == row["Parceiro"], :].drop(columns=["Cód. Parceiro", "Parceiro"], errors='ignore').idxmax(axis=1).values[0]
-    else:
-        categoria = "Desconhecido"
-    
-    if categoria == "🔵 Adimplente (Antecipado)" or categoria == "🟢 Adimplente (No Dia)":
-        return row["Score Recuperação"] + 3
-    elif categoria == "🟡 Intermediário (Atraso Eventual)":
-        return row["Score Recuperação"] + 1
-    elif categoria == "🟠 Atrasado Crônico":
-        return row["Score Recuperação"] - 2
-    elif categoria == "🔴 Inadimplente":
-        return row["Score Recuperação"] - 5
-    else:
-        return row["Score Recuperação"]
+# Criar resumo por cliente baseado nos filtros
+df_clientes = df_filtered.groupby("Cliente").agg({
+    "Vlr Título": ["sum", "mean"],
+    "NFe": "count",
+    "Tempo da Dívida": "mean",
+    "Score Recuperação": "mean",
+    "Banco": lambda x: x.value_counts().idxmax(),
+    "Teve Devolução?": lambda x: "Sim" if "Sim" in x.values else "Não"
+}).reset_index()
 
-# Aplicar ajuste no Score de Recuperação
-df["Score Recuperação"] = df.apply(ajustar_score, axis=1)
+df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
-# Exibir gráficos baseados no histórico de pagamento
-st.subheader("📊 Distribuição das Categorias de Pagamento dos Clientes")
-st.bar_chart(df_historico["Categoria Cliente"].value_counts())
-
-# Exibir resumo das categorias de clientes
-st.subheader("📌 Resumo do Comportamento de Pagamento por Cliente")
-st.dataframe(df_resumo_clientes)
-
-# Atualizar métricas principais considerando o novo Score de Recuperação
+# Exibir métricas principais
 st.title("📊 Relatório de Recuperação de Recursos")
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total de Clientes", df["Parceiro"].nunique())
-valor_total_pendente = df["Vlr Título"].sum()
+col1.metric("Total de Clientes", df_filtered["Cliente"].nunique())
+valor_total_pendente = df_filtered["Vlr Título"].sum()
 col2.metric("Valor Total Pendente", f"R$ {valor_total_pendente:,.2f}")
-col3.metric("Média de Score", round(df["Score Recuperação"].mean(), 2))
-col4.metric("Média do Tempo da Dívida (dias)", round(df["Tempo da Dívida"].mean(), 2))
+col3.metric("Média de Score", round(df_filtered["Score Recuperação"].mean(), 2))
+col4.metric("Média do Tempo da Dívida (dias)", round(df_filtered["Tempo da Dívida"].mean(), 2))
 
-# Exibir dados detalhados
+# Exibir tabelas baseadas nos filtros
+st.subheader("📌 Valores Pendentes por Cliente")
+st.dataframe(df_clientes)
 st.subheader("📌 Dados Detalhados")
-st.dataframe(df)
+st.dataframe(df_filtered)
 
 # Opção de Download dos Dados
 st.sidebar.subheader("📥 Baixar Dados Filtrados")
-st.sidebar.download_button("Baixar CSV", df.to_csv(index=False), file_name="relatorio_recuperacao.csv", mime="text/csv")
+st.sidebar.download_button("Baixar CSV", df_filtered.to_csv(index=False), file_name="relatorio_recuperacao.csv", mime="text/csv")
 
-st.sidebar.info("Agora a recuperação de recursos leva em conta o histórico de pagamento dos clientes para uma análise mais precisa!")
+st.sidebar.info("Use os filtros para segmentar os dados e analisar melhor a recuperação de recursos.")
