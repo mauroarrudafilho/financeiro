@@ -40,9 +40,16 @@ df_historico["Categoria Cliente"] = df_historico.apply(classificar_cliente, axis
 # Adicionar Código do Parceiro ao Resumo
 df_resumo_clientes = df_historico.groupby(["Cód. Parceiro", "Parceiro"])["Categoria Cliente"].value_counts().unstack().fillna(0).reset_index()
 
+# Verificar colunas disponíveis no resumo
+print("Colunas do df_resumo_clientes:", df_resumo_clientes.columns.tolist())
+
 # Integrar a categoria ao Score de Recuperação
 def ajustar_score(row):
-    categoria = df_resumo_clientes.loc[df_resumo_clientes["Parceiro"] == row["Parceiro"], :].drop(columns=["Cód. Parceiro", "Parceiro"]).idxmax(axis=1).values[0] if row["Parceiro"] in df_resumo_clientes["Parceiro"].values else "Desconhecido"
+    if row["Parceiro"] in df_resumo_clientes["Parceiro"].values:
+        categoria = df_resumo_clientes.loc[df_resumo_clientes["Parceiro"] == row["Parceiro"], :].drop(columns=["Cód. Parceiro", "Parceiro"]).idxmax(axis=1).values[0]
+    else:
+        categoria = "Desconhecido"
+    
     if categoria == "🔵 Adimplente (Antecipado)" or categoria == "🟢 Adimplente (No Dia)":
         return row["Score Recuperação"] + 3
     elif categoria == "🟡 Intermediário (Atraso Eventual)":
