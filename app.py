@@ -78,6 +78,17 @@ col2.metric("Valor Total Pendente", f"R$ {valor_total_pendente:,.2f}")
 col3.metric("Média de Score", round(df_filtered["Score Recuperação"].mean(), 2))
 col4.metric("Média do Tempo da Dívida (dias)", round(df_filtered["Tempo da Dívida"].mean(), 2))
 
+# Gráficos
+st.subheader("📊 Distribuição do Score de Recuperação")
+st.bar_chart(df_filtered["Score Recuperação"].value_counts().sort_index())
+
+st.subheader("🏦 Valor Total Pendente por Banco")
+bank_summary = df_filtered.groupby("Banco")["Vlr Título"].sum().sort_values(ascending=False)
+st.bar_chart(bank_summary)
+
+st.subheader("🕒 Distribuição por Faixa de Dívida")
+st.bar_chart(df_filtered["Faixa de Dívida"].value_counts())
+
 # Exibir tabelas baseadas nos filtros
 st.subheader("📌 Valores Pendentes por Cliente")
 st.dataframe(df_clientes)
