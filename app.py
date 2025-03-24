@@ -14,6 +14,7 @@ df["Dt. Entrega"] = pd.to_datetime(df["Dt. Entrega"], errors="coerce")
 df["Dt Venc"] = pd.to_datetime(df["Dt Venc"], errors="coerce")
 df["Vlr Devolução"] = pd.to_numeric(df["Vlr Devolução"], errors="coerce")
 df["Vlr Título"] = pd.to_numeric(df["Vlr Título"], errors="coerce")
+df["Cód Cli"] = pd.to_numeric(df["Cód Cli"], errors="coerce").astype("Int64")
 
 # Criar score de recuperação diretamente
 df["Score Recuperação"] = (
@@ -112,6 +113,7 @@ if isinstance(selected_rows, list) and len(selected_rows) > 0:
     selected_row = selected_rows[0]
     cod_cli_selected = selected_row.get("Cód Cli")
     if cod_cli_selected is not None:
+        cod_cli_selected = int(cod_cli_selected)
         df_detalhado_filtrado = df_filtered[df_filtered["Cód Cli"] == cod_cli_selected]
     else:
         df_detalhado_filtrado = df_filtered
