@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
 
 # Definir a configuração da página (DEVE SER A PRIMEIRA LINHA Streamlit)
 st.set_page_config(layout="wide", page_title="Relatório de Recuperação de Recursos")
@@ -94,9 +94,18 @@ st.bar_chart(df_filtered["Faixa de Dívida"].value_counts())
 # Exibir tabelas baseadas nos filtros
 st.subheader("📌 Valores Pendentes por Cliente")
 gb = GridOptionsBuilder.from_dataframe(df_clientes)
-gb.configure_selection("single", use_checkbox=True, pre_selected_keys=[])
+gb.configure_selection("single", use_checkbox=True)
 gb.configure_pagination(paginationAutoPageSize=True)
-selected = AgGrid(df_clientes, gridOptions=gb.build(), height=300, update_mode=GridUpdateMode.SELECTION_CHANGED, theme="streamlit")
+gb.configure_default_column(sortable=True, filter=True)
+selected = AgGrid(
+    df_clientes,
+    gridOptions=gb.build(),
+    height=300,
+    update_mode=GridUpdateMode.SELECTION_CHANGED,
+    data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+    theme="streamlit",
+    enable_enterprise_modules=True
+)
 
 if selected["selected_rows"]:
     cod_cli_selected = selected["selected_rows"][0]["Cód Cli"]
