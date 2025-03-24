@@ -58,8 +58,9 @@ df_filtered = df_filtered[(df_filtered["Score Recuperação"] >= score[0]) & (df
 df_filtered = df_filtered[(df_filtered["Tempo da Dívida"] >= intervalo_tempo[0]) & (df_filtered["Tempo da Dívida"] <= intervalo_tempo[1])]
 
 # Criar resumo por cliente baseado nos filtros
-df_clientes = df_filtered.groupby("Cliente").agg({
+df_clientes = df_filtered.groupby(["Cód Cli", "Cliente"]).agg({
     "Vlr Título": ["sum", "mean"],
+    "Vlr Devolução": "sum",
     "NFe": "count",
     "Tempo da Dívida": "mean",
     "Score Recuperação": "mean",
@@ -67,7 +68,7 @@ df_clientes = df_filtered.groupby("Cliente").agg({
     "Teve Devolução?": lambda x: "Sim" if "Sim" in x.values else "Não"
 }).reset_index()
 
-df_clientes.columns = ["Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
+df_clientes.columns = ["Cód Cli", "Cliente", "Soma Total de Valores em Aberto", "Valor Médio por Título", "Soma Total de Devoluções", "Qtd. Títulos em Aberto", "Média de Atraso (dias)", "Score Médio de Recuperação", "Banco", "Teve Devolução?"]
 
 # Exibir métricas principais
 st.title("📊 Relatório de Recuperação de Recursos")
@@ -91,9 +92,16 @@ st.bar_chart(df_filtered["Faixa de Dívida"].value_counts())
 
 # Exibir tabelas baseadas nos filtros
 st.subheader("📌 Valores Pendentes por Cliente")
-st.dataframe(df_clientes)
+selected_row = st.data_editor(df_clientes, use_container_width=True, num_rows="dynamic", hide_index=True)
+
+if selected_row is not None and not selected_row.empty:
+    cod_selecionado = selected_row["Cód Cli"].iloc[0]
+    df_detalhado_filtrado = df_filtered[df_filtered["Cód Cli"] == cod_selecionado]
+else:
+    df_detalhado_filtrado = df_filtered
+
 st.subheader("📌 Dados Detalhados")
-st.dataframe(df_filtered)
+st.dataframe(df_detalhado_filtrado, use_container_width=True)
 
 # Opção de Download dos Dados
 st.sidebar.subheader("📥 Baixar Dados Filtrados")
