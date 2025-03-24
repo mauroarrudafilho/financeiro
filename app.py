@@ -107,7 +107,7 @@ selected = AgGrid(
     enable_enterprise_modules=True
 )
 
-if selected["selected_rows"]:
+if len(selected["selected_rows"]) > 0:
     cod_cli_selected = selected["selected_rows"][0]["Cód Cli"]
     df_detalhado_filtrado = df_filtered[df_filtered["Cód Cli"] == cod_cli_selected]
 else:
